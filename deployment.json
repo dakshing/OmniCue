@@ -1,0 +1,17 @@
+{
+  "addOns": {
+    "common": {
+      "name": "OmniCue",
+      "logoUrl": "https://phonetalk-113ef.web.app/omnicue-logo.svg"
+    },
+    "meet": {
+      "web": {
+        "sidePanelUrl": "https://phonetalk-113ef.web.app/sidepanel/",
+        "supportsScreenSharing": false,
+        "addOnOrigins": ["https://phonetalk-113ef.web.app"],
+        "logoUrl": "https://phonetalk-113ef.web.app/omnicue-logo.svg",
+        "darkModeLogoUrl": "https://phonetalk-113ef.web.app/omnicue-logo-dark.svg"
+      }
+    }
+  }
+}
