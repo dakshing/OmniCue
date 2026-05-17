@@ -1,0 +1,10 @@
+{
+  "name": "omnicue-ingest",
+  "version": "1.0.0",
+  "description": "Script to ingest mock data into local Elasticsearch",
+  "main": "ingest_local.js",
+  "type": "module",
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.13.0"
+  }
+}
