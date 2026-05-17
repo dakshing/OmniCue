@@ -1,0 +1,115 @@
+# OmniCue (AGENTS.md) — Production Blueprint & Task Matrix
+
+Welcome to the core implementation directive for OmniCue, the autonomous, real-time context-matching meeting companion. This document serves as the absolute technical source of truth for both human engineers and autonomous coding agents building this prototype for the Google Cloud & Gemini Agent Hackathon (Elastic Track).
+
+---
+
+## 1. Architecture Overview
+
+OmniCue sits silently alongside live communication sessions (e.g., Zoom calls), processing continuous audio streams to proactively push contextually relevant enterprise data from an Elasticsearch archive onto the user's display window without manual intervention.
+
+### The End-to-End Pipeline:
+1. **Frontend Capture Layer**: A web dashboard tracks the system microphone input via the browser's native Web Speech API.
+2. **Streaming Ingestion Bridge**: Audio data is converted to raw text and pushed through a continuous WebSocket uplink at natural phrase boundaries (~1.5-second pause debouncing).
+3. **Orchestration Brain (Google Cloud Agent Builder)**: An agent running Gemini 3 Flash evaluates incoming text blocks. If information-gathering intent is flagged, it abstracts conversational context into an optimized query payload.
+4. **Integration Gateway (Model Context Protocol)**: The agent calls a containerized Elasticsearch MCP Server deployed on Google Cloud Run via standard Streamable-HTTP.
+5. **Data Resolution Layer**: Elasticsearch performs hybrid (lexical + vector semantic) search over indexed corporate wikis and documents, returning metadata and snippets back down the WebSocket tunnel to display a slick, non-intrusive floating card overlay.
+
+---
+
+## 2. Shared Integration API Contract
+
+To support decoupled parallel development, the frontend client and backend broker are bound strictly to the following WebSocket payload definitions.
+
+### A. Inbound Speech Event (Client -> Server)
+Emitted by the frontend mic listener every time a complete phrase or clause is parsed.
+- **Channel ID**: `meeting_speech_stream`
+- **Payload Schema**:
+```json
+{
+  "session_id": "omnicue-hackathon-session-001",
+  "text": "We need to verify the code freeze date for the Q2 launch roadmap."
+}
+```
+
+### B. Outbound Context Match Event (Server -> Client)
+Emitted by the backend broker immediately following a successful retrieval pipeline execution from the Elastic cluster.
+- **Channel ID**: `context_match_found`
+- **Payload Schema**:
+```json
+{
+  "title": "Q2_Release_Plan.md",
+  "snippet": "Code Freeze is officially scheduled for June 15, 2026. No further main-branch pushes are permitted.",
+  "url": "https://confluence.company.com/pages/viewpage.action?pageId=89712"
+}
+```
+
+---
+
+## 3. Step-by-Step Prototype Implementation Guide
+
+### Phase 1: Establish the Elasticsearch Data Layer
+- Run an Elasticsearch instance using an Elastic Cloud free trial or serverless tier.
+- Create a dedicated enterprise knowledge index (`company-knowledge-base`).
+- Seed the index with 5 to 10 mock markdown documents simulating technical specifications, roadmaps, and customer SLAs. 
+- Ensure one document explicitly contains the text parameters required to satisfy the validation script (e.g., "Code Freeze is June 15, 2026").
+- Enable dense vector embeddings or activate ELSER (Elastic Learned Sparse EncodeR) to allow hybrid keyword-semantic queries.
+
+### Phase 2: Deploy the Elastic MCP Server
+- Pull the official `@elastic/mcp-server-elasticsearch` container image.
+- Deploy the runtime to Google Cloud Run to expose a public HTTPS endpoint.
+- Inject required environment variables for secure communication:
+  - `ES_URL`: Your Elastic deployment endpoint string.
+  - `ELASTICSEARCH_USERNAME` / `ELASTICSEARCH_PASSWORD` (or API Key).
+- Use an MCP Inspector tool locally to ensure the server exposes its schema and the `search` tool successfully over the Streamable-HTTP protocol.
+
+### Phase 3: Provision Google Cloud Agent Builder
+- Navigate to the GCP console and spin up a new agent inside Agent Builder, choosing Gemini 3 Flash as the engine.
+- Go to **Tools -> Create Tool -> Select Type: Model Context Protocol (MCP)**.
+- Paste your public Cloud Run MCP server URL. The platform will automatically digest the OpenAPI tool maps (`search`, `esql`, etc.).
+- Inject this baseline system prompt criteria to structure the model's background operation:
+  > "You are a passive enterprise listening companion sitting in a live corporate call.
+  > 1. Never speak back directly or address the room unless explicitly called by name.
+  > 2. Continually evaluate input text streams. If attendees mention software roadmaps, release updates, or internal rules, translate that intent into an optimized Elasticsearch Query DSL string.
+  > 3. Trigger the Elastic MCP 'search' tool and populate a structured 'document_found' return map matching the frontend contract schema."
+
+### Phase 4: Construct the Frontend Audio Handler
+- Build an HTML5/React workspace displaying a clean dark-themed dashboard.
+- Instantiate the native browser `webkitSpeechRecognition` utility.
+- Configure continuous streaming: `recognition.continuous = true` and `recognition.interimResults = false`.
+- Write a 1.5-second debouncer. The listener should avoid flooding the network and only emit the `meeting_speech_stream` WebSocket payload when a distinct conversational pause or full semantic block is completed.
+
+### Phase 5: Wire the Middleware Broker Link
+- Write an Express app using `socket.io` running a continuous listening thread.
+- Catch the `meeting_speech_stream` data from the web application.
+- Initialize the Google Cloud Client SDK to forward the raw text block into the running Agent Builder session using the `detectIntent()` API.
+- Intercept the tool parameters evaluated by Gemini 3. If a valid document match object block is returned from the Elastic MCP utility, immediately emit a `context_match_found` payload back down the Socket channel to the frontend UI.
+
+---
+
+## 4. The Hackathon Task Split Matrix
+
+To execute this architecture rapidly within the short hackathon timeline, responsibilities are cleanly isolated into frontend and backend lanes:
+
+| Role Lane | Owner | Operational Deliverables |
+| :--- | :--- | :--- |
+| **Data & AI Infrastructure** | You | - Spin up and embed vectors inside the Elastic Cloud index.<br>- Deploy the Elastic MCP server container onto Google Cloud Run.<br>- Orchestrate workspace rules inside Google Cloud Agent Builder.<br>- Build the Node.js middleware proxy to bridge WebSockets and the GCP SDK. |
+| **Audio Capture & UI Extension** | Teammate | - Build the frontend visual console application dashboard.<br>- Implement browser-native Web Speech API microphone hooks.<br>- Build the 1.5s phrase chunking/debouncing script.<br>- Handle client-side WebSocket communication states.<br>- Design and polish the slide-out UI card layout that showcases matches. |
+| **Project Branding & Pitch** | Shared | - Name validation: OmniCue.<br>- Draft a 3-minute validation narrative script focusing on $4.73/user/mo ROI.<br>- Final submission video production. |
+
+---
+
+## 5. Validation & "Golden Path" Testing Script
+
+To verify that the implementation is firing flawlessly on all layers before recording your 3-minute hackathon demo video, execute this strict testing matrix:
+
+1. **Initialization**: Start your Node.js broker server and open the web dashboard in your browser. Tap the "Join & Listen Call" button to allow microphone capture.
+2. **Verification Speech**: Read this testing script aloud naturally:
+   > "Hey team, we need to quickly verify our engineering timeline before the client check-in. Can someone double-check when the exact code freeze date is scheduled for our upcoming Q2 launch roadmap?"
+3. **Expected Terminal Logs (Your Side)**:
+   - Backend logs show `'WebSocket received speech text chunk'`.
+   - Agent Builder session detects information gathering intent.
+   - Outbound payload triggers the Elastic MCP tool with search string matching *"Q2 launch roadmap code freeze date"*.
+4. **Expected UI Action (Teammate's Side)**:
+   - Within ~2 seconds, a sleek floating notification card glides smoothly onto the right side of the screen displaying: `Q2_Release_Plan.md`.
+   - The text snippet accurately exposes the line: *"Code Freeze is officially scheduled for June 15, 2026."*
